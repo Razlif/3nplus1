@@ -2,15 +2,20 @@
 ## create and print a sequence based on 3n+1 
 
 n = int(input("choose Your N: "))
+
 stopping_time = 0
+plotted_points = []
+
 while n != 1:
-    print(n)
+    plotted_points.append(n)
     if (n % 2) == 0:
         n = n/2
     else:
         n = (3*n) + 1
     stopping_time +=1
-print(n)
-stopping_time +=1
-print("number of plotted points in this sequence: " + str(stopping_time))
+plotted_points.append(n)
+print(plotted_points)
+print("number of plotted points in this sequence: " + str(len(plotted_points)))
+
+
 
