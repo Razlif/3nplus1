@@ -1,21 +1,27 @@
+## create meta list of ranges
 
-## create and print a sequence based on 3n+1 
+meta_list = []
 
-n = int(input("choose Your N: "))
+## create and store a sequence based on 3n+1 in meta list
 
-stopping_time = 0
-plotted_points = []
-
-while n != 1:
+counter = 0
+n = 3
+while counter < 10:
+    next_1 = int(n*3)
+    stopping_time = 0
+    plotted_points = []
+    while n != 1:
+        plotted_points.append(n)
+        if (n % 2) == 0:
+            n = n/2
+        else:
+            n = (3*n) + 1
+        stopping_time +=1
     plotted_points.append(n)
-    if (n % 2) == 0:
-        n = n/2
-    else:
-        n = (3*n) + 1
-    stopping_time +=1
-plotted_points.append(n)
-print(plotted_points)
-print("number of plotted points in this sequence: " + str(len(plotted_points)))
-
-
+    print("number of plotted points in this sequence: " + str(len(plotted_points)))
+    meta_list.append(plotted_points)
+    n = next_1
+    counter += 1
+print(meta_list)
+    
 
