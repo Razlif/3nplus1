@@ -1,13 +1,17 @@
+from bitmap import BitMap
+
 def cadance(n):
-    bmap = []
+    map_string = ""
     while n != 1:
         if n%2 == 0:
             n = int(n/2)
-            bmap.append("0")
+            map_string = map_string + "0"
         else:
             n = 3*n+1
-            bmap.append("1")
-    print(bmap)
+            map_string = map_string + "1"
+    bm = BitMap.fromstring(map_string)
+    print(bm)
+    return bm
 
 n = input("choose n: ")
 
