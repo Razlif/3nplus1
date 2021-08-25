@@ -1,0 +1,210 @@
+###############################################
+#          Import packages                    #
+###############################################
+
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pyvirtualdisplay import Display
+from datetime import datetime
+import re
+import time
+
+##################################################################################################################
+#          Log in Function to Granot CRM -                                                                       #
+#          requires company log in credentials and admin credentials                                             #
+##################################################################################################################
+
+def login(admin_user_name, admin_password):
+    try:
+        url = "Enter your Granot Log In URL" 
+        company_user = "Link to company user name"
+        company_password = "Link to company Password"
+        driver = webdriver.Firefox()
+        driver.maximize_window()
+        driver.get(url)
+        print("getting url...")
+        driver.switch_to.default_content()
+        company_user_xpath = "/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td[1]/form/table/tbody/tr[1]/td[2]/input"
+        company_password_xpath = "/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td[1]/form/table/tbody/tr[5]/td[2]/input"
+        frame_xpath = "/html/frameset/frame[2]"
+        user_xpath2 = "/html/body/table/tbody/tr[2]/td/form/table/tbody/tr[1]/td[3]/input"
+        password_xpath2 = "/html/body/table/tbody/tr[2]/td/form/table/tbody/tr[4]/td[3]/input"
+        submit_xpath2 = "/html/body/table/tbody/tr[2]/td/form/table/tbody/tr[6]/td[2]/input"
+        submit_xpath = "/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td[1]/form/table/tbody/tr[8]/td[2]/input"
+        expected_condition = EC.frame_to_be_available_and_switch_to_it((By.XPATH, frame_xpath))
+        print("Starting log in...")
+        WebDriverWait(driver, 2).until(expected_condition)
+        user_field1 = driver.find_element_by_xpath(company_user_xpath)
+        user_field1.send_keys(company_user)
+        pass_field1 = driver.find_element_by_xpath(company_password_xpath)
+        pass_field1.send_keys(company_password)
+        submit_1 = driver.find_element_by_xpath(submit_xpath)
+        submit_1.click()
+        time.sleep(5)
+        user_field2 = driver.find_element_by_xpath(user_xpath2)
+        print("First Page ok")
+        user_field2.send_keys(admin_user_name)
+        time.sleep(1)
+        pass_field2 = driver.find_element_by_xpath(password_xpath2)
+        pass_field2.send_keys(admin_password)
+        submit_2 = driver.find_element_by_xpath(submit_xpath2)
+        submit_2.click()
+        time.sleep(5)
+        assign_page_xpath = "/html/body/table[1]/tbody/tr[3]/td/table/tbody/tr/td/table[2]/tbody/tr/td[1]/table/tbody/tr[3]/td[2]"
+        assign_page = driver.find_element_by_xpath(assign_page_xpath)
+        assign_page.click()
+        print("Log in complete")
+        print("fetching leads page....")
+        time.sleep(3)
+        driver.switch_to.window(driver.window_handles[1])
+        print(driver.current_url)
+        new_leads_page = driver.current_url
+        print("got MAIN leads page")
+        return driver, new_leads_page
+        time.sleep(3)
+    except:
+        print("---log in failed---ABORTED")
+        driver.quit()
+def assign_new_leads(admin_user_name, admin_password, assign_to_user):
+    try:
+        driver, new_leads_page = login(admin_user_name, admin_password)
+    except:
+        print("could not filter or log in correctly - ABORTED")
+        driver.quit()
+    driver.get(new_leads_page)
+    print("Loading assign leads page...")
+    submit_next = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_1")))
+    submit_next.click()
+    time.sleep(5)
+    assign_source = driver.page_source
+    Links = re.findall(r'href="(.*?)"', str(assign_source))
+    if len(Links) == 1:
+        print("No new leads detectd - check again next cycle...")
+        driver.quit()
+    else:
+        counter = 0
+        for client in Links:
+            try:
+                client_url = "https://zebra.hellomoving.com/" + str(client)
+                print(client_url)
+                assign_lead(driver, client_url, assign_to_user)
+                counter += 1
+            except:
+                print("could not assign this lead ----")
+        print("assigned " + str(counter) + "Leads -  DONE")
+    driver.quit()
+    
+    
+##################################################################################################################
+#          Function to check and filter for new leads -  Runs on fixed intervals                                 #
+#          requires assign_to_user = the user that will be geting the leads                                     #
+##################################################################################################################
+
+def assign_new_leads(admin_user_name, admin_password, assign_to_user):
+    try:
+        driver, new_leads_page = login(admin_user_name, admin_password)
+    except:
+        print("could not filter or log in correctly - ABORTED")
+        driver.quit()
+    driver.get(new_leads_page)
+    print("Loading assign leads page...")
+    submit_next = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_1")))
+    submit_next.click()
+    time.sleep(5)
+    assign_source = driver.page_source
+    Links = re.findall(r'href="(.*?)"', str(assign_source))
+    if len(Links) == 1:
+        print("No new leads detectd - check again next cycle...")
+        driver.quit()
+    else:
+        counter = 0
+        for client in Links:
+            try:
+                client_url = "https://zebra.hellomoving.com/" + str(client)
+                print(client_url)
+                assign_lead(driver, client_url, assign_to_user)
+                counter += 1
+            except:
+                print("could not assign this lead ----")
+        print("assigned " + str(counter) + "Leads -  DONE")
+    driver.quit()
+    
+    
+##################################################################################################################
+#          Function to assign the new leads -                                                                    #
+#          Assignes the lead and fills in basic esimate fields                                                   #
+##################################################################################################################
+
+def assign_lead(driver, client_url, assign_to_user):
+    driver.get(client_url)
+    print("getting lead...")
+    submit_charges = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_1")))
+    estimate_fields = driver.find_elements_by_xpath("//*[@name]")
+    estimate_fields[12].clear()
+    estimate_fields[12].send_keys("ESTIMATE FIELD 1")
+    estimate_fields[13].clear()
+    estimate_fields[13].send_keys("FIELD 1 PRICE")
+    estimate_fields[14].clear()
+    estimate_fields[14].send_keys("ESTIMATE FIELD 2")
+    estimate_fields[15].clear()
+    estimate_fields[15].send_keys("0.00")
+    estimate_fields[16].clear()
+    estimate_fields[16].send_keys("ESTIMATE FIELD 3")
+    estimate_fields[17].clear()
+    estimate_fields[17].send_keys("0.00")
+    eestimate_fields[23].clear()
+    estimate_fields[23].send_keys("ESTIMATE FIELD 4")
+    estimate_fields[24].clear()
+    estimate_fields[24].send_keys("0.00")
+    estimate_fields[25].clear()
+    estimate_fields[25].send_keys("ESTIMATE FIELD 5")
+    estimate_fields[26].clear()
+    estimate_fields[26].send_keys("0.00")
+    time.sleep(1)
+    submit_charges2 = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_2")))
+    submit_charges2.click()
+    time.sleep(5)
+    submit_charges = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_1")))
+    onclick_elements = driver.find_elements_by_xpath("//*[@onclick]")
+    for element in onclick_elements:
+        element_name = element.get_attribute('innerHTML')
+        if "Update Users" in str(element_name):
+            update_users_element = element
+    update_user_value = update_users_element.get_attribute('innerHTML')
+    update_users_element.click()
+    print(str(update_user_value))
+    print("updating user page.....")
+    time.sleep(3)
+    user_box = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "USER")))
+    user_box.send_keys(assign_to_user)
+    user_box.send_keys(Keys.ENTER)
+    time.sleep(1)
+    submit_assign = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "B45")))
+    submit_assign.click()
+    print("client assigned to user - " + str(user))
+    time.sleep(5)
+
+
+##################################################################################################################
+#          Run in fixed 5 minutes intervals on Pythonanywhere console -                                                                       #
+#          requires company log in credentials and admin credentials                                             #
+##################################################################################################################
+
+with Display():
+    counter = 0
+    cycles = 100
+    admin_user_name = "Link to admin user name"
+    admin_password = "Link to admin password"
+    assign_to_user = "Enter the user to receive new leads"
+    while counter < 100:
+        try:
+            assign_new_leads(admin_user_name, admin_password, assign_to_user)
+            counter += 1
+            time.sleep(300)
+        except:
+            print("failed attempt")
+            time.sleep(30)
+            counter += 1
