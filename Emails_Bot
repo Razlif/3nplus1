@@ -1,0 +1,330 @@
+###############################################
+#          Import packages                    #
+###############################################
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pyvirtualdisplay import Display
+from datetime import datetime
+from datetime import date
+from dateutil import parser
+import re
+import time
+
+##################################################################################################################
+#          Log in Function to Granot CRM -                                                                       #
+#          requires company log in credentials and admin credentials                                             #
+##################################################################################################################
+
+
+def login(admin_user_name, admin_password):
+    try:
+        url = "Enter your Granot Log In URL" 
+        company_user = "Link to company user name"
+        company_password = "Link to company Password"
+        driver = webdriver.Firefox()
+        driver.maximize_window()
+        driver.get(url)
+        print("getting url...")
+        driver.switch_to.default_content()
+        company_user_xpath = "/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td[1]/form/table/tbody/tr[1]/td[2]/input"
+        company_password_xpath = "/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td[1]/form/table/tbody/tr[5]/td[2]/input"
+        frame_xpath = "/html/frameset/frame[2]"
+        user_xpath2 = "/html/body/table/tbody/tr[2]/td/form/table/tbody/tr[1]/td[3]/input"
+        password_xpath2 = "/html/body/table/tbody/tr[2]/td/form/table/tbody/tr[4]/td[3]/input"
+        submit_xpath2 = "/html/body/table/tbody/tr[2]/td/form/table/tbody/tr[6]/td[2]/input"
+        submit_xpath = "/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td[1]/form/table/tbody/tr[8]/td[2]/input"
+        expected_condition = EC.frame_to_be_available_and_switch_to_it((By.XPATH, frame_xpath))
+        print("Starting log in...")
+        WebDriverWait(driver, 2).until(expected_condition)
+        user_field1 = driver.find_element_by_xpath(company_user_xpath)
+        user_field1.send_keys(company_user)
+        pass_field1 = driver.find_element_by_xpath(company_password_xpath)
+        pass_field1.send_keys(company_password)
+        submit_1 = driver.find_element_by_xpath(submit_xpath)
+        submit_1.click()
+        time.sleep(5)
+        user_field2 = driver.find_element_by_xpath(user_xpath2)
+        print("First Page ok")
+        user_field2.send_keys(admin_user_name)
+        time.sleep(1)
+        pass_field2 = driver.find_element_by_xpath(password_xpath2)
+        pass_field2.send_keys(admin_password)
+        submit_2 = driver.find_element_by_xpath(submit_xpath2)
+        submit_2.click()
+        time.sleep(5)
+        print("Log in complete")
+        filter_page_xpath = "/html/body/table[1]/tbody/tr[3]/td/table/tbody/tr/td/table[2]/tbody/tr/td[1]/table/tbody/tr[2]/td[2]"
+        filter_page = driver.find_element_by_xpath(filter_page_xpath)
+        filter_page.click()
+        time.sleep(5)
+        print("Accesing filter leads page...")
+        driver.switch_to.window(driver.window_handles[1])
+        filter_url= driver.current_url
+        return filter_url
+    except:
+        print("---log in failed---ABORTED")
+        driver.quit
+
+
+##################################################################################################################
+#          Funcion to access and filter leads by user and type -                                                                       #
+#          requires the user name and lead type.                                            #
+##################################################################################################################
+
+
+
+def filterlead(user_name, lead_type, filter_url):
+    try:
+        driver.get(filter_url)
+        dates = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, "Date1")))
+        dates.clear()
+        dates.send_keys("01/01/2000")
+        time.sleep(3)
+        priority = driver.find_element_by_name("FUSTATUS")
+        priority.send_keys(lead_type)
+        print("priority ok")
+        time.sleep(3)
+        users = driver.find_element_by_name("USER")
+        users.send_keys(user_name)
+        print("user ok")
+        time.sleep(3)
+        driver.find_element_by_xpath("//input[@value='V9']").click()
+        time.sleep(3)
+        submit = driver.find_element_by_id("btnSubmit")
+        submit.click()
+        time.sleep(5)
+        print("filter complete")
+    except:
+        print("can not filter")
+        driver.quit()
+
+##################################################################################################################
+#          Function for accessing the leads and sending an email                                                 #
+#          Intervals between emails and email cycle order can be changed                                         #
+##################################################################################################################
+
+
+def mailer():
+    html_source = driver.page_source
+    clients = re.findall(r'href="(.*?)">', str(html_source))
+    for client in clients:
+        try:
+            if client == clients[0]:
+                print("first link skip")
+            else:
+                emailurl =("https://zebra.hellomoving.com/wc.dll?mpest~emailcenterwc~")
+                client_url = "https://zebra.hellomoving.com/" + str(client)
+                driver.get(client_url)
+                print(client_url)
+                html_source2 = driver.page_source
+                block = re.findall(r'email is on the removal list', str(html_source2))
+                if len(block) == 0:
+                    submit_charges = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_1")))
+                    elements_by_id_1 = driver.find_elements_by_id('Date5')
+                    counter = 0
+                    for elem in elements_by_id_1:
+                        pick_up_date = elem.get_attribute('value')
+                        counter = counter + 1
+                    pick_up_date_final = str(parser.parse(pick_up_date))
+                    now_date = str(date.today())
+                    is_old_lead = days_between(pick_up_date_final, now_date)
+                    if is_old_lead == 0:
+                        print("difference in days from move date to today: " + str(is_old_lead))
+                        print("PAST MOVE DATE")
+                        notes = driver.find_element_by_name("REPNOTESX")
+                        notes.click()
+                        notes.send_keys("PAST MOVE DATE")
+                        submit_charges2 = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_2")))
+                        submit_charges2.click()
+                        time.sleep(3)
+                    else:
+                        print("difference in days from move date to today: " + str(is_old_lead))
+                    elements_by_id_2 = driver.find_elements_by_id('Date1')
+                    counter = 0
+                    for elem in elements_by_id_2:
+                        open_date = elem.get_attribute('value')
+                        counter = counter + 1
+                    open_date_final = str(parser.parse(open_date))
+                    client_days = days_between(open_date_final, now_date)
+                    if client_days < 8:
+                        client_type ="new client"
+                    elif client_days > 7 and client_days < 15:
+                        client_type = "1 week old lead"
+                    elif client_days > 14 and client_days < 30:
+                        client_type = "2 weeks old lead"
+                    else:
+                        client_type = "1 month old lead"
+                    print(client_type)
+                    client_signature = re.findall(r'gotnewwc~(.*?)~G1', str(html_source2))
+                    for i in client_signature:
+                        emailurl = emailurl + i
+                    xpat_s = "//input[@value='Send Email']"
+                    driver.get(emailurl)
+                    print("getting email url")
+                    submit = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, str(xpat_s))))
+                    last_date_sent_xpath = "/html/body/table/tbody/tr/td/table[2]/tbody/tr[2]/td[2]"
+                    last_date_sent_element = driver.find_elements_by_xpath(last_date_sent_xpath)
+                    last_date_sent_value = last_date_sent_element[0].get_attribute('innerHTML')
+                    last_date_sent = str(last_date_sent_value)
+                    last_date_sent2 = re.findall(r'&nbsp;(.*?)&nbsp;', str(last_date_sent))
+                    last_sent_date_final = str(last_date_sent2[0])
+                    before_date = str(parser.parse(last_sent_date_final))
+                    now_date = str(date.today())
+                    time_from_last_email = days_between(before_date, now_date)
+                    print("difference in days from last email to today: " + str(time_from_last_email))
+                    email_decide = email_yes_or_no(client_type, time_from_last_email)
+                    if email_decide == "yes":
+                        last_email_xpath = "/html/body/table/tbody/tr/td/table[2]/tbody/tr[2]/td[4]/a"
+                        last_email_element = driver.find_elements_by_xpath(last_email_xpath)
+                        last_email_value = last_email_element[0].get_attribute('innerHTML')
+                        last_email = str(last_email_value)
+                        print(last_email)
+                        email_update = "UPDATE"
+                        email_follow = "FOLLOW"
+                        email_estimate = "Your Moving Estimate"
+                        email_tips = "TIPS"
+                        email_trying = "TRYING"
+                        email_why = "WHY"
+                        email_information = "INFORMATION"
+                        email_need = "NEED"
+                        email_company = "COMPANY"
+                        email_reserve = "Reserve"
+                        email_calculator = "Calculator"
+                        if email_update in last_email:
+                            email_code = "67283"
+                            print(email_code)
+                        elif email_tips in last_email:
+                            email_code = "67285"
+                            print(email_code)
+                        elif email_follow in last_email:
+                            email_code = "67081"
+                            print(email_code)
+                        elif email_information in last_email:
+                            email_code = "67091"
+                            print(email_code)
+                        elif email_trying in last_email:
+                            email_code = "67087"
+                            print(email_code)
+                        elif email_why in last_email:
+                            email_code = "67085"
+                            print(email_code)
+                        elif email_need in last_email:
+                            email_code = "66927"
+                            print(email_code)
+                        elif email_company in last_email:
+                            email_code = "67282"
+                            print(email_code)
+                        elif email_estimate in last_email:
+                            email_code = "67282"
+                            print(email_code)
+                        elif email_reserve in last_email:
+                            email_code = "66926"
+                            print(email_code)
+                        elif email_calculator in last_email:
+                            email_code = "67284"
+                            print(email_code)
+                        else:
+                            email_code = "67282"
+                            print(email_code)
+                        submit.click()
+                        print("Estimate sent")
+                        time.sleep(8)
+                        driver.get(emailurl)
+                        email_to_send_xpath = "//input[@value=" + str(email_code) + "]"
+                        email = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, str(email_to_send_xpath))))
+                        email.click()
+                        time.sleep(1)
+                        submit = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, str(xpat_s))))
+                        submit.click()
+                        print(email_code + " Email sent")
+                        time.sleep(8)
+                    else:
+                        print("Skipping...")
+                else:
+                    print("blocked client")
+                    notes = driver.find_element_by_name("REPNOTESX")
+                    notes.click()
+                    notes.send_keys("BLOCKED EMAIL")
+                    submit_charges2 = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.NAME, "SUBMIT_2")))
+                    submit_charges2.click()
+                    time.sleep(3)
+        except:
+            print("can not email this client")
+
+
+##################################################################################################################
+#          Funcion to check difference in days -                                                                 #
+#          rUsed tto calculate lead time in the system and days from last email                                  #
+##################################################################################################################
+
+
+
+def days_between(d1, d2):
+    d1 = datetime.strptime(d1, "%Y-%m-%d %H:%M:%S")
+    d2 = datetime.strptime(d2, "%Y-%m-%d")
+    return abs((d2 - d1).days)
+    
+
+##################################################################################################################
+#          Function to decide if to send an email to a specific client or not -                                  #
+#          requires the time in days from last email and the type of lead                                        #
+##################################################################################################################
+
+
+
+def email_yes_or_no(client_type, time_from_last_email):
+    if client_type == "new client":
+        if int(time_from_last_email) > 0:
+            send_email = "yes"
+            print("sending email...")
+        else:
+            send_email = "no"
+            print("Lead already emailed today")
+    elif client_type == "1 week old lead":
+        if int(time_from_last_email) > 0:
+            send_email = "yes"
+            print("sending email...")
+        else:
+            send_email = "no"
+            print("1 week old lead - email every 48 hours")
+    elif client_type == "2 weeks old lead":
+        if int(time_from_last_email) > 0:
+            send_email = "yes"
+            print("sending email...")
+        else:
+            send_email = "no"
+            print("2 weeks old lead - email every 72 hours")
+    elif client_type == "1 month old lead":
+        if int(time_from_last_email) > 0:
+            send_email = "yes"
+            print("sending email...")
+        else:
+            send_email = "no"
+            print("1 month old lead - email every 7 days")
+    else:
+        print(client_type)
+        print("send email: " + send_email)
+    return send_email
+    
+##################################################################################################################
+#          Run on Pythonanywhere console                                                                       #
+#          requires company log in credentials and admin credentials                                             #
+##################################################################################################################
+
+
+with Display():
+    admin_user_name = "Enter admin user name" 
+    admin_password = "Enter admin password Link"
+    user = "Enter user to send emails for"
+    priority = "Enter leads priority number"
+    url = "Enter Company Granot  log in Link"
+    driver = webdriver.Firefox()
+    driver.maximize_window()
+    x = login(admin_user_name, admin_password)
+    filterlead(user, priority, x)
+    mailer()
+    print("Completed")
+    driver.quit()
